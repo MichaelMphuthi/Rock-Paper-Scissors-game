@@ -1,0 +1,95 @@
+import random
+
+# Smart Player
+def player(prev_opponent_play, opponent_history=[]):
+    if prev_opponent_play:
+        opponent_history.append(prev_opponent_play)
+
+    if len(opponent_history) < 5:
+        return random.choice(["R", "P", "S"])
+
+    move_counts = {"R": 0, "P": 0, "S": 0}
+    for move in opponent_history:
+        move_counts[move] += 1
+
+    predicted_move = max(move_counts, key=move_counts.get)
+    beats = {"R": "P", "P": "S", "S": "R"}
+    return beats[predicted_move]
+
+# Game Simulation Code
+
+def play(player, opponent=None, num_games=1000):
+    if opponent is None:
+        bots = [Michael, Tony, Tom, Dinny]
+    else:
+        bots = [opponent]
+
+    results = {}
+    for bot in bots:
+        p1_prev = ""
+        p2_prev = ""
+        p1_history = []
+        p2_history = []
+        score = {"player": 0, "opponent": 0, "tie": 0}
+
+        for _ in range(num_games):
+            move1 = player(p2_prev)
+            move2 = bot(p1_prev)
+
+            p1_prev = move1
+            p2_prev = move2
+
+            if move1 == move2:
+                score["tie"] += 1
+            elif beats(move1, move2):
+                score["player"] += 1
+            else:
+                score["opponent"] += 1
+
+            p1_history.append(move1)
+            p2_history.append(move2)
+
+        results[bot.__name__] = score
+
+    for bot_name, result in results.items():
+        total = sum(result.values())
+        win_rate = result["player"] / total * 100
+        print(f"Against {bot_name}: {result} → Win rate: {win_rate:.1f}%")
+
+#  Utility 
+def beats(one, two):
+    return (one == "R" and two == "S") or \
+           (one == "S" and two == "P") or \
+           (one == "P" and two == "R")
+
+# Opponent Bots
+
+def Michael(prev_opponent_play):
+    # Always plays R, P, S, R, P, S...
+    options = ["R", "P", "S"]
+    idx = Michael.counter % 3
+    Michael.counter += 1
+    return options[idx]
+Michael.counter = 0
+
+def Tony(prev_opponent_play, Tony_history=[]):
+    Tony_history.append(prev_opponent_play)
+    if len(Tony_history) < 3:
+        return "R"
+    else:
+        return Tony_history[-3]
+
+def Tom(prev_opponent_play):
+    return random.choice(["R", "P", "S"])
+
+def Dinny(prev_opponent_play, counter={"R": 0, "P": 0, "S": 0}):
+    if prev_opponent_play:
+        counter[prev_opponent_play] += 3
+    most_common = max(counter, key=counter.get)
+    strategy = {"R": "P", "P": "S", "S": "R"}
+    return strategy[most_common]
+
+# Run the Simulation
+
+if __name__ == "__main__":
+    play(player)
