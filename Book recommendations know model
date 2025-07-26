@@ -1,0 +1,139 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "gpuType": "T4",
+      "authorship_tag": "ABX9TyMe7HgJRY2gs3kjDH3ZDGlA",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/MichaelMphuthi/Rock-Paper-Scissors-game/blob/main/Book%20recommendations%20know%20model\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "\n",
+        "# Step 1: Download and unzip dataset ===\n",
+        "import os\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "from sklearn.neighbors import NearestNeighbors\n",
+        "\n",
+        "# Download and unzip\n",
+        "!wget https://cdn.freecodecamp.org/project-data/books/book-crossings.zip\n",
+        "!unzip -o book-crossings.zip\n",
+        "\n",
+        "# === Step 2: Load CSV files ===\n",
+        "books_filename = 'BX-Books.csv'\n",
+        "ratings_filename = 'BX-Book-Ratings.csv'\n",
+        "\n",
+        "books = pd.read_csv(books_filename, sep=';', encoding='latin-1', on_bad_lines='skip', low_memory=False)\n",
+        "ratings = pd.read_csv(ratings_filename, sep=';', encoding='latin-1', on_bad_lines='skip', low_memory=False)\n",
+        "\n",
+        "# Rename columns for consistency\n",
+        "books.columns = ['isbn', 'book_title', 'book_author', 'year_of_publication', 'publisher', 'image_url_s', 'image_url_m', 'image_url_l']\n",
+        "ratings.columns = ['user_id', 'isbn', 'book_rating']\n",
+        "\n",
+        "# Merge datasets\n",
+        "data = pd.merge(ratings, books, on='isbn')\n",
+        "data = data[['user_id', 'book_title', 'book_rating']]\n",
+        "\n",
+        "# === Step 3: Filter users with >=200 ratings and books with >=100 ratings ===\n",
+        "user_counts = data['user_id'].value_counts()\n",
+        "active_users = user_counts[user_counts >= 200].index\n",
+        "\n",
+        "book_counts = data['book_title'].value_counts()\n",
+        "popular_books = book_counts[book_counts >= 100].index\n",
+        "\n",
+        "filtered_data = data[\n",
+        "    (data['user_id'].isin(active_users)) &\n",
+        "    (data['book_title'].isin(popular_books))\n",
+        "]\n",
+        "\n",
+        "# === Step 4: Create Book-User Pivot Table ===\n",
+        "book_user_matrix = filtered_data.pivot_table(index='book_title', columns='user_id', values='book_rating')\n",
+        "book_user_matrix.fillna(0, inplace=True)\n",
+        "\n",
+        "# === Step 5: Fit NearestNeighbors Model ===\n",
+        "model_knn = NearestNeighbors(metric='cosine', algorithm='brute')\n",
+        "model_knn.fit(book_user_matrix)\n",
+        "\n",
+        "# === Step 6: Recommendation Function ===\n",
+        "def get_recommends(book_title):\n",
+        "    if book_title not in book_user_matrix.index:\n",
+        "        return [book_title, []]\n",
+        "\n",
+        "    book_idx = book_user_matrix.index.get_loc(book_title)\n",
+        "    distances, indices = model_knn.kneighbors([book_user_matrix.iloc[book_idx].values], n_neighbors=6)\n",
+        "\n",
+        "    recs = []\n",
+        "    for i in range(1, len(distances[0])):\n",
+        "        similar_book = book_user_matrix.index[indices[0][i]]\n",
+        "        distance = distances[0][i]\n",
+        "        recs.append([similar_book, distance])\n",
+        "\n",
+        "    return [book_title, recs]\n",
+        "\n",
+        "# === Step 7: Example Test ===\n",
+        "print(get_recommends(\"The Queen of the Damned (Vampire Chronicles (Paperback))\"))\n",
+        "\n",
+        "# === Step 8: Search for matching title (fuzzy lookup helper) ===\n",
+        "for title in book_user_matrix.index:\n",
+        "    if \"queen of the damned\" in title.lower():\n",
+        "        print(title)"
+      ],
+      "metadata": {
+        "id": "UohxuAyz1Evh",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "b97ef1d2-930e-4b25-dbbb-112efd70aff1"
+      },
+      "execution_count": 1,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "--2025-07-26 13:04:53--  https://cdn.freecodecamp.org/project-data/books/book-crossings.zip\n",
+            "Resolving cdn.freecodecamp.org (cdn.freecodecamp.org)... 104.26.3.33, 172.67.70.149, 104.26.2.33, ...\n",
+            "Connecting to cdn.freecodecamp.org (cdn.freecodecamp.org)|104.26.3.33|:443... connected.\n",
+            "HTTP request sent, awaiting response... 200 OK\n",
+            "Length: 26085508 (25M) [application/zip]\n",
+            "Saving to: ‘book-crossings.zip’\n",
+            "\n",
+            "book-crossings.zip  100%[===================>]  24.88M  --.-KB/s    in 0.1s    \n",
+            "\n",
+            "2025-07-26 13:04:53 (183 MB/s) - ‘book-crossings.zip’ saved [26085508/26085508]\n",
+            "\n",
+            "Archive:  book-crossings.zip\n",
+            "  inflating: BX-Book-Ratings.csv     \n",
+            "  inflating: BX-Books.csv            \n",
+            "  inflating: BX-Users.csv            \n",
+            "['The Queen of the Damned (Vampire Chronicles (Paperback))', [['The Vampire Lestat (Vampire Chronicles, Book II)', np.float64(0.5145133637013516)], ['The Tale of the Body Thief (Vampire Chronicles (Paperback))', np.float64(0.5298544346433054)], ['Taltos: Lives of the Mayfair Witches', np.float64(0.7326513985533574)], ['Interview with the Vampire', np.float64(0.7364973810380667)], ['The Witching Hour (Lives of the Mayfair Witches)', np.float64(0.7371460814604434)]]]\n",
+            "The Queen of the Damned (Vampire Chronicles (Paperback))\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
